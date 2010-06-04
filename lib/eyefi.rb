@@ -4,7 +4,6 @@ require 'digest/md5'
 require 'lib/archive'
 require 'stringio'
 require 'exifr'
-require 'Logger'
 
 module Exceptions
   class IntegrityError < StandardError; end
@@ -24,7 +23,6 @@ class EyefiCard
     unless meta.nil?
       received_photo = Photo.new(self, temp_file, integrity_digest, meta)
       @photos[received_photo.orginal_name] = received_photo
-      puts received_photo
       return received_photo
     else
       raise Exceptions::IncompleteMetadataError

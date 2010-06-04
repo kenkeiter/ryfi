@@ -12,9 +12,10 @@ Up and Running
 --------------
 To get Ryfi up and running, you'll need to install the following Ruby gems:
 
-* Sinatra
+* sinatra
 * SOAP4r
-* Builder
+* builder
+* exifr
 
 Install the Eye-Fi manager software, and configure your card to connect to the networks of your choosing. You'll need to procure the MAC address and upload key for each card -- on a Mac, simply take a look at the following XML file:
 
