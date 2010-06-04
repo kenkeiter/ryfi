@@ -23,4 +23,4 @@ class MyApp < RyfiApp
   
 end
 
-MyApp.run! :host => 'localhost', :port => 59278
+MyApp.run! :host => 'localhost', :port => 59278 # must be on this port for card
