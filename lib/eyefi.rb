@@ -6,23 +6,28 @@ require 'stringio'
 require 'exifr'
 require 'Logger'
 
-Log = Logger.new(STDOUT)
-Log.level = Logger::DEBUG
+module Exceptions
+  class IntegrityError < StandardError; end
+  class IncompleteMetadataError < StandardError; end
+end
 
 class EyefiCard
   
   attr_reader :upload_key
+  attr_reader :mac_address
   
-  def initialize(mac, upload_key)
-    @mac_address, @upload_key, @photos = mac, upload_key, []
+  def initialize(mac_address, upload_key)
+    @mac_address, @upload_key, @photos = mac_address, upload_key, {}
   end
   
   def receive_photo(temp_file, integrity_digest, meta = nil)
-    Log.debug "#{self} receiving photo: #{temp_file}.."
     unless meta.nil?
       received_photo = Photo.new(self, temp_file, integrity_digest, meta)
-      @photos << received_photo
+      @photos[received_photo.orginal_name] = received_photo
+      puts received_photo
       return received_photo
+    else
+      raise Exceptions::IncompleteMetadataError
     end
   end
   
@@ -43,17 +48,17 @@ class Photo
       @photo_fp = StringIO.new(extract_data(@tar_fp))
       update_exif!
     else
-      raise 'Image TAR checksum invalid.'
+      raise Exceptions::IntegrityError
     end
   end
   
   def integrity_compromised?(digest)
     tar_bytes = @tar_fp.read # we need this to be a string
     pos, tcp_sums = 0, []
-    while tar.length % 512 != 0 do
+    while tar_bytes.length % 512 != 0 do
       tar_bytes << "\x00"
     end
-    while pos < tar.length do
+    while pos < tar_bytes.length do
       tcp_sums << tcp_checksum(tar_bytes[pos..pos + 511])
       pos += 512
     end
@@ -62,11 +67,12 @@ class Photo
     return !out.eql?(digest)
   end
   
+  def original_name
+    @meta.filename.split('.')[0..1].join('.')
+  end
+  
   def save_with_original_name!(path)
-    original_name = @meta.filename.split('.')[0..1].join('.')
-    fp = File.new(File.join(path, original_name), 'w+')
-    fp << @photo_fp.read
-    fp.close
+    save! File.join(path, original_name)
   end
   
   def save!(path)
@@ -93,16 +99,16 @@ class Photo
   end
   
   def tcp_checksum(bytes)
-    counter, two_byte_sum = 0, 0
+    counter, byte_sum = 0, 0
     bytes << "\x00" if bytes.length % 2 != 0
     while counter < bytes.length do
-      two_byte_sum += bytes[counter..counter + 2].unpack('v')[0]
+      byte_sum += bytes[counter..counter + 2].unpack('v')[0]
       counter += 2
     end
-    while (two_byte_sum >> 16) != 0 do
-      two_byte_sum = (two_byte_sum >> 16) + (two_byte_sum & 0xFFFF)
+    while (byte_sum >> 16) != 0 do
+      byte_sum = (byte_sum >> 16) + (byte_sum & 0xFFFF)
     end
-    return ~two_byte_sum & 0xFFFF
+    return ~byte_sum & 0xFFFF
   end
   
 end

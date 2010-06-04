@@ -5,18 +5,20 @@ require 'lib/eyefi'
 require 'stringio'
 require 'exifr'
 
+MyCard = EyefiCard.new('000000000000', 'superSecretUploadKeyInHex')
+
 class MyApp < RyfiApp
   
   authorize_cards :find_card
   handle_photos_with :handle_photo
   
   def find_card(mac)
-    {'001856102287' => EyefiCard.new('001856102287', '2c3eadb135e2bd6cff25115ff51ee4c8')}[mac]
+    {'000000000000' => MyCard}[mac]
   end
   
   def handle_photo(card, photo)
     puts "New photo from: #{photo.exif[:model]}"
-    photo.save_with_original_name! '/Users/kkeiter/Desktop/test'
+    photo.save_with_original_name! '/Path/To/My/Deskop'
   end
   
 end

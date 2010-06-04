@@ -56,7 +56,7 @@ class RyfiApp < PatchedSinatraApp
   
   # Handle StartSession
   post '/api/soap/eyefilm/v1', :soap_action => 'urn:StartSession', :agent => /Eye-Fi Card/ do
-    
+        
     builder do |xml|
       xml.instruct! :xml, :version => '1.0'
       xml.tag!('SOAP-ENV:Envelope', 'xmlns:SOAP-ENV' => 'http://schemas.xmlsoap.org/soap/envelope/'){
@@ -76,7 +76,7 @@ class RyfiApp < PatchedSinatraApp
   
   # Handle GetPhotoStatus
   post '/api/soap/eyefilm/v1', :soap_action => 'urn:GetPhotoStatus', :agent => /Eye-Fi Card/ do
-    
+        
     builder do |xml|
       xml.instruct! :xml
       xml.tag!('SOAP-ENV:Envelope', 'xmlns:SOAP-ENV' => 'http://schemas.xmlsoap.org/soap/envelope/'){
@@ -93,7 +93,7 @@ class RyfiApp < PatchedSinatraApp
   
   # Handle MarkLastPhotoInRoll
   post '/api/soap/eyefilm/v1', :soap_action => 'urn:MarkLastPhotoInRoll', :agent => /Eye-Fi Card/ do
-    
+        
     builder do |xml|
       xml.instruct! :xml
       xml.tag!('SOAP-ENV:Envelope', 'xmlns:SOAP-ENV' => 'http://schemas.xmlsoap.org/soap/envelope/'){
@@ -107,7 +107,7 @@ class RyfiApp < PatchedSinatraApp
   
   # Handle Upload
   post '/api/soap/eyefilm/v1/upload', :agent => /Eye-Fi Card/ do
-       
+        
     photo = params[:card].receive_photo(params['FILENAME'][:tempfile], params['INTEGRITYDIGEST'], params[:soap])
     self.send(@@photo_handler, params[:card], photo)
     
