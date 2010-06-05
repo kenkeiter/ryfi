@@ -27,7 +27,10 @@ end
 
 class RyfiApp < PatchedSinatraApp
   
+  set :lock, true
+  
   @@snonce = Digest::MD5.hexdigest((0...8).map{65.+(rand(25)).chr}.join)
+  @@card_auth_handler = nil
   
   class << self
     def handle_photos_with(handler)
@@ -48,15 +51,19 @@ class RyfiApp < PatchedSinatraApp
         params[:soap] = soap_to_object(params[:SOAPENVELOPE])
       end
       # find card by mac
-      params[:card] = self.send(@@card_auth_handler, params[:soap].macaddress)
+      unless @@card_auth_handler.nil?
+        params[:card] = self.send(@@card_auth_handler, params[:soap].macaddress)
+      else
+        params[:card] = EyefiCard.find_by_mac(params[:soap].macaddress)
+      end
       response['Server'] = 'Eye-Fi Agent/2.0.4.0 (Windows XP SP2)'
       content_type 'application/xml', :charset => 'utf-8'
-    end
+    end  
   end
   
   # Handle StartSession
   post '/api/soap/eyefilm/v1', :soap_action => 'urn:StartSession', :agent => /Eye-Fi Card/ do
-        
+    
     builder do |xml|
       xml.instruct! :xml, :version => '1.0'
       xml.tag!('SOAP-ENV:Envelope', 'xmlns:SOAP-ENV' => 'http://schemas.xmlsoap.org/soap/envelope/'){
@@ -110,6 +117,8 @@ class RyfiApp < PatchedSinatraApp
         
     photo = params[:card].receive_photo(params['FILENAME'][:tempfile], params['INTEGRITYDIGEST'], params[:soap])
     self.send(@@photo_handler, params[:card], photo)
+    
+    EyefiCard.log.debug "Sending upload response..."
     
     builder do |xml|
       xml.instruct! :xml

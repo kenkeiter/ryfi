@@ -4,6 +4,8 @@ require 'digest/md5'
 require 'lib/archive'
 require 'stringio'
 require 'exifr'
+require 'singleton'
+require 'logger'
 
 module Exceptions
   class IntegrityError < StandardError; end
@@ -12,17 +14,49 @@ end
 
 class EyefiCard
   
+  include Singleton
+  
+  @@cards = {}
+  @@log = nil
+  
+  class << self
+    
+    def find_by_mac(mac)
+      @@cards[mac]
+    end
+    
+    def log
+      @@log = Logger.new(STDOUT) if @@log.nil?
+      @@log.level = Logger::DEBUG
+      return @@log
+    end
+    
+    def register(*args)
+      inst = EyefiCardInstance.new(*args)
+      @@cards[args[0]] = inst unless @@cards.key? args[0]
+      return inst
+    end
+    
+  end
+  
+end
+
+class EyefiCardInstance
+  
   attr_reader :upload_key
   attr_reader :mac_address
+  attr_reader :photos
   
   def initialize(mac_address, upload_key)
+    EyefiCard.log.debug "Instantiating new card: #{mac_address}, #{upload_key}"
     @mac_address, @upload_key, @photos = mac_address, upload_key, {}
   end
   
   def receive_photo(temp_file, integrity_digest, meta = nil)
     unless meta.nil?
+      EyefiCard.log.debug "Card #{@mac_address} attempting to receive new photo: #{temp_file}, #{integrity_digest}."
       received_photo = Photo.new(self, temp_file, integrity_digest, meta)
-      @photos[received_photo.orginal_name] = received_photo
+      @photos[received_photo.original_name] = received_photo
       return received_photo
     else
       raise Exceptions::IncompleteMetadataError
@@ -43,6 +77,7 @@ class Photo
     @card, @exif, @meta = card, nil, meta
     @tar_fp = StringIO.new(temp_file.read)
     unless integrity_compromised? integrity_digest
+      EyefiCard.log.debug "#{self}: File integrity verified!"
       @photo_fp = StringIO.new(extract_data(@tar_fp))
       update_exif!
     else
@@ -51,7 +86,9 @@ class Photo
   end
   
   def integrity_compromised?(digest)
-    tar_bytes = @tar_fp.read # we need this to be a string
+    EyefiCard.log.debug "#{self} verifying file integrity against digest: #{digest}"
+    
+    @tar_fp.rewind; tar_bytes = @tar_fp.read # we need this to be a string
     pos, tcp_sums = 0, []
     while tar_bytes.length % 512 != 0 do
       tar_bytes << "\x00"
@@ -74,8 +111,8 @@ class Photo
   end
   
   def save!(path)
-    File.new(path, 'w+')
-    fp << @photo_fp.read
+    fp = File.new(path, 'w+')
+    @photo_fp.rewind; fp << @photo_fp.read
     fp.close
   end
   
@@ -84,15 +121,18 @@ class Photo
   #######
   
   def update_exif!
+    EyefiCard.log.debug "#{self}'s updating exif."
     @exif = EXIFR::JPEG.new(@photo_fp).exif
   end
   
   def extract_data(fp)
+    fp.rewind
     components = []
     tar = Archive::Tar::Reader.new(fp)
     tar.each_entry{|entry|
       components << entry.extract_data!
     }
+    EyefiCard.log.debug "#{self} extracted archive (length: #{fp.length})"
     components.first
   end
   

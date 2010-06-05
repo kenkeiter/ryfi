@@ -289,7 +289,6 @@ module Archive
 				@header = Header.new(header)
 
 				if @header.file?
-					puts "File: #{@header.name}, #{@header.size} bytes"
 					size = @header.size
 
 					if size > 0
@@ -312,8 +311,6 @@ module Archive
 						puts "Couldn't create file for writing, or something: " + e.message
 					end
 				end
-
-				File.utime(@header.mtime, Time.new, target + @header.name)
 			end # }}}
 		end # }}}
 	end

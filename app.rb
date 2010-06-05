@@ -5,22 +5,19 @@ require 'lib/eyefi'
 require 'stringio'
 require 'exifr'
 
-MyCard = EyefiCard.new('000000000000', 'superSecretUploadKeyInHex')
+# Register as many cards as you wish (accepts the card's MAC + upload key)
+EyefiCard.register('782201658100', '2c3eadb135e2bd6cff25115ff51ee4c8')
 
 class MyApp < RyfiApp
   
-  authorize_cards :find_card
   handle_photos_with :handle_photo
   
-  def find_card(mac)
-    {'000000000000' => MyCard}[mac]
-  end
-  
   def handle_photo(card, photo)
-    puts "New photo from: #{photo.exif[:model]}"
-    photo.save_with_original_name! '/Path/To/My/Deskop'
+    EyefiCard.log.debug "Received new photo (#{photo.original_name}) shot with an #{photo.exif[:model]}."
+    photo.save_with_original_name! '/Users/kkeiter/Desktop/test'
   end
   
 end
 
-MyApp.run! :host => 'localhost', :port => 59278 # must be on this port for card
+# Server must be run on 59278 so that the card can reach it.
+MyApp.run! :host => 'localhost', :port => 59278
